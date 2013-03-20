@@ -649,3 +649,14 @@ class Add1080pAndRawHDQualities(RenameSeasonFolders):
             self.connection.action("UPDATE history SET quality = ? WHERE showid = ? AND date = ?", [self._update_quality(cur_entry["quality"]), cur_entry["showid"], cur_entry["date"]])
 
         self.incDBVersion()
+
+class AddSceneNumbers(FixAirByDateSetting):
+
+	def test(self):
+		return self.checkDBVersion() >= 10
+
+	def execute(self):
+		self.addColumn("tv_episodes", "scene_episode", "NUMERIC", "NULL")
+		self.addColumn("tv_episodes", "scene_season", "NUMERIC", "NULL")
+
+		self.incDBVersion()
