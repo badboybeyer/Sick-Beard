@@ -545,27 +545,27 @@ class PostProcessor(object):
                     season = 1
             
             if tvdb_id and season != None and episodes:
-				season, episodes = self._sceneToTVDBNumbers(tvdb_id, season, episodes)
+                season, episodes = self._sceneToTVDBNumbers(tvdb_id, season, episodes)
                 return (tvdb_id, season, episodes)
 		
 		season, episodes = self._sceneToTVDBNumbers(tvdb_id, season, episodes)
         return (tvdb_id, season, episodes)
     
-	def _sceneToTVDBNumbers(self, tvdb_id, season, episodes):
-		if not self.release_group:
-			self._log(u"This does NOT look like a scene release. assuming these are tvdb numbers", logger.DEBUG)
-			return (season, episodes)
+    def _sceneToTVDBNumbers(self, tvdb_id, season, episodes):
+        if not self.release_group:
+            self._log(u"This does NOT look like a scene release. assuming these are tvdb numbers", logger.DEBUG)
+            return (season, episodes)
 
-		self._log(u"This looks like a scene release converting scene numbers to tvdb numbers", logger.DEBUG)
-		ep_obj = self._get_ep_obj(tvdb_id, season, episodes, scene=True)
-		if ep_obj:
-			newEpisodeNumbers = []
-			for curEp in [ep_obj] + ep_obj.relatedEps:
-				newEpisodeNumbers.append(curEp.episode)
-			return (ep_obj.season, newEpisodeNumbers)
-		return (season, episodes)
-	
-    def _get_ep_obj(self, tvdb_id, season, episodes):
+        self._log(u"This looks like a scene release converting scene numbers to tvdb numbers", logger.DEBUG)
+        ep_obj = self._get_ep_obj(tvdb_id, season, episodes, scene=True)
+        if ep_obj:
+            newEpisodeNumbers = []
+            for curEp in [ep_obj] + ep_obj.relatedEps:
+                newEpisodeNumbers.append(curEp.episode)
+            return (ep_obj.season, newEpisodeNumbers)
+        return (season, episodes)
+
+    def _get_ep_obj(self, tvdb_id, season, episodes, scene=False):
         """
         Retrieve the TVEpisode object requested.
         
@@ -578,9 +578,9 @@ class PostProcessor(object):
         """
 
         show_obj = None
-		sceneMsg = ""
-		if scene:
-			sceneMsg = "(scene numbers) "
+        sceneMsg = ""
+        if scene:
+            sceneMsg = "(scene numbers) "
 
         self._log(u"Loading show object for tvdb_id "+str(tvdb_id), logger.DEBUG)
         # find the show in the showlist
