@@ -23,6 +23,7 @@ from sickbeard.helpers import sanitizeSceneName
 from sickbeard.scene_exceptions import get_scene_exceptions
 from sickbeard import logger
 from sickbeard import db
+from sickbeard.completparser import CompleteParser
 
 import re
 import datetime
@@ -43,13 +44,10 @@ def filterBadReleases(name):
     Returns: True if the release name is OK, False if it's bad.
     """
 
-    try:
-        fp = NameParser()
-        parse_result = fp.parse(name)
-    except InvalidNameException:
-        logger.log(u"Unable to parse the filename "+name+" into a valid episode", logger.WARNING)
-        return False
-
+    cp = CompleteParser()
+    cpr = cp.parse(name)
+    parse_result = cpr.parse_result
+    
     # use the extra info and the scene group to filter against
     check_string = ''
     if parse_result.extra_info:
@@ -113,7 +111,7 @@ def makeSceneShowSearchStrings(show):
     return map(sanitizeSceneName, showNames)
 
 
-def makeSceneSeasonSearchString (show, segment, extraSearchType=None):
+def makeSceneSeasonSearchString (show, segment, extraSearchType=None, scene=False):
 
     myDB = db.DBConnection()
 
@@ -132,7 +130,7 @@ def makeSceneSeasonSearchString (show, segment, extraSearchType=None):
         if extraSearchType == "nzbmatrix":
             seasonStrings.append("%ix" % segment)
 
-    showNames = set(makeSceneShowSearchStrings(show))
+    showNames = set(makeSceneShowSearchStrings(show, segment))
 
     toReturn = []
     term_list = []

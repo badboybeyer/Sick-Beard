@@ -650,13 +650,16 @@ class Add1080pAndRawHDQualities(RenameSeasonFolders):
 
         self.incDBVersion()
 
-class AddSceneNumbers(FixAirByDateSetting):
+class AddSceneNumbers(Add1080pAndRawHDQualities):
 
-	def test(self):
-		return self.checkDBVersion() >= 13
+    def test(self):
+        return self.checkDBVersion() >= 13
 
-	def execute(self):
-		self.addColumn("tv_episodes", "scene_episode", "NUMERIC", "NULL")
-		self.addColumn("tv_episodes", "scene_season", "NUMERIC", "NULL")
+    def execute(self):
+        backupDatabase(self.checkDBVersion())
 
-		self.incDBVersion()
+        self.addColumn("tv_episodes", "scene_episode", "NUMERIC", "NULL")
+        self.addColumn("tv_episodes", "scene_season", "NUMERIC", "NULL")
+        self.addColumn("tv_episodes", "scene_absolute_number", "NUMERIC", "NULL")
+
+        self.incDBVersion()

@@ -23,6 +23,7 @@ import datetime
 import threading
 import re
 import glob
+from sickbeard.completparser import CompleteParser
 try:
     import json
 except ImportError:
@@ -361,6 +362,7 @@ class TVShow(object):
                 epObj = self.getEpisode(curSeason, curEp)
                 epObj.scene_season = None
                 epObj.scene_episode = None
+                epObj.scene_absolute_number = None
                 epObj.saveToDB()
 
         if xemJson['result'] == 'failure':
@@ -376,6 +378,7 @@ class TVShow(object):
             curEp = self.getEpisode(tvdb['season'], tvdb['episode'])
             curEp.scene_season = scene['season']
             curEp.scene_episode = scene['episode']
+            curEp.scene_absolute_number = scene['absolute']
             curEp.saveToDB()
         return True
 		
@@ -486,21 +489,19 @@ class TVShow(object):
 
         logger.log(str(self.tvdbid) + ": Creating episode object from " + file, logger.DEBUG)
 
-        try:
-            myParser = NameParser()
-            parse_result = myParser.parse(file)
-        except InvalidNameException:
-            logger.log(u"Unable to parse the filename "+file+" into a valid episode", logger.ERROR)
-            return None
-
+        
+        cp = CompleteParser(show=self)
+        cpr = cp.parse(file)
+        parse_result = cpr.parse_result
+        
         if len(parse_result.episode_numbers) == 0 and not parse_result.air_by_date:
             logger.log("parse_result: "+str(parse_result))
             logger.log(u"No episode number found in "+file+", ignoring it", logger.ERROR)
             return None
 
         # for now lets assume that any episode in the show dir belongs to that show
-        season = parse_result.season_number if parse_result.season_number != None else 1
-        episodes = parse_result.episode_numbers
+        season = cpr.season
+        episodes = cpr.episodes
         rootEp = None
 
         # if we have an air-by-date show then get the real season/episode numbers
