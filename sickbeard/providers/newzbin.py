@@ -243,7 +243,7 @@ class NewzbinProvider(generic.NZBProvider):
 
         return data
 
-    def _get_season_search_strings(self, show, season):
+    def _get_season_search_strings(self, show, season, scene=False):
 
         nameList = set(show_name_helpers.allPossibleShowNames(show))
 
@@ -265,7 +265,7 @@ class NewzbinProvider(generic.NZBProvider):
 
         nameList = set(show_name_helpers.allPossibleShowNames(ep_obj.show))
         if not ep_obj.show.air_by_date:
-            searchStr = " OR ".join(['^"'+x+' - %dx%02d"'%(ep_obj.season, ep_obj.episode) for x in nameList])
+            searchStr = " OR ".join(['^"'+x+' - %dx%02d"'%(ep_obj.scene_season, ep_obj.scene_episode) for x in nameList])
         else:
             searchStr = " OR ".join(['^"'+x+' - '+str(ep_obj.airdate)+'"' for x in nameList])
         return [searchStr]
