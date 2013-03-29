@@ -206,33 +206,14 @@ class CompleteParser(object):
         if len(showList) == 0:
             showList = sickbeard.showList
 
-        #if show and show.is_anime:
-        #    modeList = [NameParser.ANIME_REGEX, NameParser.NORMAL_REGEX]
-        #elif show and not show.is_anime:
-        #    modeList = [NameParser.NORMAL_REGEX]
-        #else: # just try both ... time consuming
-        #    modeList = [NameParser.ANIME_REGEX, NameParser.NORMAL_REGEX]
-        #modeList = [NameParser.NORMAL_REGEX]
-        
-        #for mode in modeList:
         try:
             myParser = NameParser()
             parse_result = myParser.parse(toParse)
         except InvalidNameException:
             parse_result = None
             self._log(u"Could not parse '" + toParse + "' in regex mode: " + str(0), logger.DEBUG)
-        #else:
-        #    show = self.get_show_by_name(parse_result.series_name, showList, tvdbActiveLookUp)
-                #if show and show.is_anime:
-                #    if mode == NameParser.ANIME_REGEX or mode == NameParser.NORMAL_REGEX:
-                #        break
-                #else:
-        #        if mode == NameParser.NORMAL_REGEX:
-        #            break
-        #else:
-        #    raise InvalidNameException(u"Unable to parse " + toParse)
-
-        #self._parse_mode = NORMAL_REGEX
+        else:
+            show = self.get_show_by_name(parse_result.series_name, showList, toParse, tvdbActiveLookUp)
         return (parse_result, show)
 
     def scene2tvdb(self, show, scene_name, season, episodes, absolute_numbers):
@@ -260,52 +241,8 @@ class CompleteParser(object):
 
         # lets just get a db connection we will need it anyway
         myDB = db.DBConnection()
-        # should we use absolute_numbers -> anime or season, episodes -> normal show
-        """
-        if show.is_anime:
-            self._log(u"'" + show.name + "' is an anime i will scene convert the absolute numbers " + str(absolute_numbers), logger.DEBUG)
-            if possible_seasons:
-                #check if we have a scene_absolute_number in the possible seasons
-                for cur_possible_season in possible_seasons:
-                    # and for all absolute numbers
-                    for cur_ab_number in absolute_numbers:
-                        namesSQlResult = myDB.select("SELECT season, episode, absolute_number, name FROM tv_episodes WHERE showid = ? and scene_season = ? and scene_absolute_number = ?", [show.tvdbid, cur_possible_season, cur_ab_number])
-                        if len(namesSQlResult) > 1:
-                            self._log("Multiple episodes for a absolute number and season. this should not be check xem configuration", logger.ERROR)
-                            self.complete_result.scene = False
-                            raise MultipleSceneEpisodeResults("Multiple episodes for a absolute number and season")
-                        elif len(namesSQlResult) == 0:
-                            break # break out of current absolute_numbers -> next season ... this is not a good sign
-                        # if we are here we found ONE episode for this season absolute number
-                        self._log(u"I found matching episode: " + namesSQlResult[0]['name'], logger.DEBUG)
-                        out_episodes.append(int(namesSQlResult[0]['episode']))
-                        out_absolute_numbers.append(int(namesSQlResult[0]['absolute_number']))
-                        out_season = int(namesSQlResult[0]['season']) # note this will always use the last season we got ... this will be a problem on double episodes that break the season barrier
-                    if out_season: # if we found a episode in the cur_possible_season we dont need / want to look at the other season possibilities
-                        self.complete_result.scene = True
-                        break
-            else: # no possible seasons from the scene names lets look at this more generic
-                for cur_ab_number in absolute_numbers:
-                    namesSQlResult = myDB.select("SELECT season, episode, absolute_number, name FROM tv_episodes WHERE showid = ? and scene_absolute_number = ?", [show.tvdbid, cur_ab_number])
-                    if len(namesSQlResult) > 1:
-                        self._log("Multiple episodes for a absolute number. this might happend because we are missing a scene name for this season. xem lacking behind ?", logger.ERROR)
-                        self.complete_result.scene = False
-                        raise MultipleSceneEpisodeResults("Multiple episodes for a absolute number")
-                    elif len(namesSQlResult) == 0:
-                        continue
-                    # if we are here we found ONE episode for this season absolute number
-                    self._log(u"I found matching episode: " + namesSQlResult[0]['name'], logger.DEBUG)
-                    out_episodes.append(int(namesSQlResult[0]['episode']))
-                    out_absolute_numbers.append(int(namesSQlResult[0]['absolute_number']))
-                    out_season = int(namesSQlResult[0]['season']) # note this will always use the last season we got ... this will be a problem on double episodes that break the season barrier
-                    self.complete_result.scene = True
-            if not out_season: # we did not find anything in the loops ? damit there is no episode
-                self._log("No episode found for these scene numbers. asuming tvdb numbers", logger.DEBUG)
-                # we still have to convert the absolute number to sxxexx ... but that is done not here
-                self.complete_result.scene = False # should be false
-        """
-        #else:
-        self._log(u"'" + show.name + "' is a normal show i will scene convert the season and episodes " + str(season) + "x" + str(episodes), logger.DEBUG)
+        # should we use absolute_numbers -> season, episodes -> normal show
+        self._log(u"Trying to scene convert the season and episode (if needed) for '" + show.name + "' - " + str(season) + "x" + str(episodes), logger.DEBUG)
         out_absolute_numbers = None
         if possible_seasons:
             #check if we have a scene_absolute_number in the possible seasons
@@ -344,20 +281,19 @@ class CompleteParser(object):
             out_season = season
             out_episodes = episodes
             out_absolute_numbers = absolute_numbers
-            self.complete_result.scene = False # we still don't consider this a scene fix
+            self.complete_result.scene = False # we don't consider this a scene fix
 
         # okay that was easy we found the correct season and episode numbers
         return (out_season, out_episodes, out_absolute_numbers)
 
-    def get_show_by_name(self, name, showList, useTvdb=False):
+    def get_show_by_name(self, name, showList, fileName, useTvdb=False):
         if not name:
             self._log(u"Not trying to get the tvdbid. No name given", logger.DEBUG)
             return None
 
         self._log(u"Trying to get the tvdbid for " + name, logger.DEBUG)
-
-        name = helpers.full_sanitizeSceneName(name)
-
+        name = helpers.sanitizeSceneName(name)
+        
         cacheResult = sickbeard.name_cache.retrieveNameFromCache(name)
         if cacheResult:
             return helpers.findCertainShow(sickbeard.showList, cacheResult)
@@ -367,7 +303,25 @@ class CompleteParser(object):
             return helpers.findCertainShow(showList, sickbeard.scene_exceptions.exception_tvdb[name])
         else:
             self._log(u"Did NOT find " + name + " in the exception list", logger.DEBUG)
-
+        
+        # if the cache failed, try looking up the show name in the database
+        logger.log(u"Trying to look up the show in the show database", logger.DEBUG)
+        showResult = helpers.searchDBForShow(name)
+        if showResult:
+            logger.log(name+" was found to be show "+showResult[1]+" ("+str(showResult[0])+") in our DB.", logger.DEBUG)
+            tvdb_id = showResult[0]
+            sickbeard.name_cache.addNameToCache(name, tvdb_id)
+            return helpers.findCertainShow(showList, tvdb_id)
+        
+        # if the DB lookup fails then do a comprehensive regex search
+        logger.log(u"Couldn't figure out a show name straight from the DB, trying a regex search instead", logger.DEBUG)
+        for curShow in sickbeard.showList:
+            if sickbeard.show_name_helpers.isGoodResult(fileName, curShow):
+                logger.log(u"Successfully matched "+fileName+" to "+curShow.name+" with regex", logger.DEBUG)
+                tvdb_id = curShow.tvdbid
+                sickbeard.name_cache.addNameToCache(name, tvdb_id)
+                return helpers.findCertainShow(showList, tvdb_id)
+                
         if useTvdb:
             try:
                 t = tvdb_api.Tvdb(custom_ui=classes.ShowListUI, **sickbeard.TVDB_API_PARMS)

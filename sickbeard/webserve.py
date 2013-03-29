@@ -2571,7 +2571,12 @@ class Home:
                     if epObj.show.air_by_date:
                         ep_segment = str(epObj.airdate)[:7]
                     else:
+                        scene = False
                         ep_segment = epObj.season
+                        if isinstance(epObj.scene_season, int):
+                            ep_segment = int(epObj.scene_season)
+                            scene = True
+                        
 
                     if ep_segment not in segment_list:
                         segment_list.append(ep_segment)
@@ -2594,9 +2599,15 @@ class Home:
 
         msg = "Backlog was automatically started for the following seasons of <b>"+showObj.name+"</b>:<br />"
         for cur_segment in segment_list:
-            msg += "<li>Season "+str(cur_segment)+"</li>"
-            logger.log(u"Sending backlog for "+showObj.name+" season "+str(cur_segment)+" because some eps were set to wanted")
-            cur_backlog_queue_item = search_queue.BacklogQueueItem(showObj, cur_segment)
+            msg += "<li>Season "+str(cur_segment)
+            if scene is True:
+                msg += " (scene)</li>"
+                scene_msg = " (scene)"
+            else:
+                msg += "</li>"
+                scene_msg = ""
+            logger.log(u"Sending backlog for "+showObj.name+" season "+str(cur_segment)+scene_msg+" because some eps were set to wanted")
+            cur_backlog_queue_item = search_queue.BacklogQueueItem(showObj, cur_segment, scene)
             sickbeard.searchQueueScheduler.action.add_item(cur_backlog_queue_item) #@UndefinedVariable
         msg += "</ul>"
 

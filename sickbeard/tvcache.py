@@ -181,24 +181,23 @@ class TVCache():
     def _addCacheEntry(self, name, url, season=None, episodes=None, tvdb_id=0, tvrage_id=0, quality=None, extraNames=[]):
 
         myDB = self._getDB()
-
         
         # if we don't have complete info then parse the filename to get it
         for curName in [name] + extraNames:
-            cp = CompleteParser(tvdbActiveLookUp=True)
-            cpr = cp.parse(curName)
-            if cpr:
-                break
-            else:
+            try:
+                cp = CompleteParser()
+                cpr = cp.parse(curName)
+            except:
+                logger.log(u"Unable to parse the filename "+curName+" into a valid episode", logger.DEBUG)
                 return False
             
-            episodeText = "|"+"|".join(map(str, cpr.episodes))+"|"
+        episodeText = "|"+"|".join(map(str, cpr.episodes))+"|"
                         
         # get the current timestamp
         curTimestamp = int(time.mktime(datetime.datetime.today().timetuple()))
 
         myDB.action("INSERT INTO "+self.providerID+" (name, season, episodes, tvrid, tvdbid, url, time, quality) VALUES (?,?,?,?,?,?,?,?)",
-                    [name, cpr.season, episodeText, 0, cpr.tvdb_id, url, curTimestamp, cpr.quality])
+                    [name, cpr.season, episodeText, 0, cpr.tvdbid, url, curTimestamp, cpr.quality])
 
 
     def searchCache(self, episode, manualSearch=False):
