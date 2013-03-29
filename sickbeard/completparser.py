@@ -294,35 +294,41 @@ class CompleteParser(object):
         self._log(u"Trying to get the tvdbid for " + name, logger.DEBUG)
         name = helpers.sanitizeSceneName(name)
         
-        cacheResult = sickbeard.name_cache.retrieveNameFromCache(name)
-        if cacheResult:
-            return helpers.findCertainShow(sickbeard.showList, cacheResult)
-
-        if name in sickbeard.scene_exceptions.exception_tvdb:
-            self._log(u"Found " + name + " in the exception list", logger.DEBUG)
-            return helpers.findCertainShow(showList, sickbeard.scene_exceptions.exception_tvdb[name])
+        self._log(u"Checking the cache to see if we allready know the tvdb_id of " + name, logger.DEBUG)
+        tvdb_id = sickbeard.name_cache.retrieveNameFromCache(name)
+        if tvdb_id is None:
+            from_cache = False
+            self._log(u"No cache results returned, continuing on with the search", logger.DEBUG)
         else:
-            self._log(u"Did NOT find " + name + " in the exception list", logger.DEBUG)
+            logger.log(u"Cache lookup found "+repr(tvdb_id)+", using that", logger.DEBUG)
+            from_cache = True
+        
+        #checking scene exception list
+        if tvdb_id is None:
+            if name in sickbeard.scene_exceptions.exception_tvdb:
+                self._log(u"Found " + name + " in the exception list", logger.DEBUG)
+                tvdb_id = sickbeard.scene_exceptions.exception_tvdb[name]
+            else:
+                self._log(u"Did NOT find " + name + " in the exception list", logger.DEBUG)
         
         # if the cache failed, try looking up the show name in the database
-        logger.log(u"Trying to look up the show in the show database", logger.DEBUG)
-        showResult = helpers.searchDBForShow(name)
-        if showResult:
-            logger.log(name+" was found to be show "+showResult[1]+" ("+str(showResult[0])+") in our DB.", logger.DEBUG)
-            tvdb_id = showResult[0]
-            sickbeard.name_cache.addNameToCache(name, tvdb_id)
-            return helpers.findCertainShow(showList, tvdb_id)
-        
+        if tvdb_id is None:
+            logger.log(u"Trying to look up the show in the show database", logger.DEBUG)
+            showResult = helpers.searchDBForShow(name)
+            if showResult:
+                logger.log(name+" was found to be show "+showResult[1]+" ("+str(showResult[0])+") in our DB.", logger.DEBUG)
+                tvdb_id = showResult[0]
+
         # if the DB lookup fails then do a comprehensive regex search
-        logger.log(u"Couldn't figure out a show name straight from the DB, trying a regex search instead", logger.DEBUG)
-        for curShow in sickbeard.showList:
-            if sickbeard.show_name_helpers.isGoodResult(fileName, curShow):
-                logger.log(u"Successfully matched "+fileName+" to "+curShow.name+" with regex", logger.DEBUG)
-                tvdb_id = curShow.tvdbid
-                sickbeard.name_cache.addNameToCache(name, tvdb_id)
-                return helpers.findCertainShow(showList, tvdb_id)
+        if tvdb_id is None:
+            logger.log(u"Couldn't figure out a show name straight from the DB, trying a regex search instead", logger.DEBUG)
+            for curShow in sickbeard.showList:
+                if sickbeard.show_name_helpers.isGoodResult(fileName, curShow):
+                    logger.log(u"Successfully matched "+fileName+" to "+curShow.name+" with regex", logger.DEBUG)
+                    tvdb_id = curShow.tvdbid
+                    break
                 
-        if useTvdb:
+        if tvdb_id is None and useTvdb:
             try:
                 t = tvdb_api.Tvdb(custom_ui=classes.ShowListUI, **sickbeard.TVDB_API_PARMS)
                 showObj = t[name]
@@ -343,10 +349,23 @@ class CompleteParser(object):
             except (IOError):
                 return None
             else:
-                show = helpers.findCertainShow(sickbeard.showList, int(showObj["id"]))
-                if show:
-                    return show
-
+                tvdb_id = int(showObj["id"])
+                #if show:
+                #    return show
+        
+        # if tvdb_id was anything but None (0 or a number) then
+        if not from_cache:
+            sickbeard.name_cache.addNameToCache(name, tvdb_id)
+            
+        # if we came out with tvdb_id = None it means we couldn't figure it out at all, just use 0 for that
+        if tvdb_id is None:
+            tvdb_id = 0
+        
+        if tvdb_id:
+            showObj = helpers.findCertainShow(sickbeard.showList, tvdb_id)
+            if showObj:
+                return showObj
+            
         return None
 
 
