@@ -658,8 +658,8 @@ class AddSceneNumbers(Add1080pAndRawHDQualities):
     def execute(self):
         backupDatabase(self.checkDBVersion())
 
-        self.addColumn("tv_episodes", "scene_episode", "NUMERIC", "NULL")
-        self.addColumn("tv_episodes", "scene_season", "NUMERIC", "NULL")
-        self.addColumn("tv_episodes", "scene_absolute_number", "NUMERIC", "NULL")
+        self.addColumn("tv_episodes", "scene_episode", "NUMERIC", None)
+        self.addColumn("tv_episodes", "scene_season", "NUMERIC", None)
+        self.addColumn("tv_episodes", "scene_absolute_number", "NUMERIC", None)
 
         self.incDBVersion()
