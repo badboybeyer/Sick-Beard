@@ -43,6 +43,7 @@ from sickbeard.exceptions import ex
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
 
 from lib.tvdb_api import tvdb_api, tvdb_exceptions
+from sickbeard.completparser import CompleteParser
 
 class PostProcessor(object):
     """
@@ -357,7 +358,14 @@ class PostProcessor(object):
     
         if not name:
             return to_return
-    
+        
+        cp = CompleteParser(log=self._log, tvdbActiveLookUp=True)
+        cpr = cp.parse(name)
+        self.is_proper = cpr.is_proper
+        self.series_name = cpr.series_name
+
+        return (cpr.tvdbid, cpr.season, cpr.episodes)
+        """
         # parse the name to break it into show name, season, and episode
         np = NameParser(file)
         parse_result = np.parse(name)
@@ -371,13 +379,13 @@ class PostProcessor(object):
             episodes = parse_result.episode_numbers 
 
         to_return = (None, season, episodes)
-    
+        
         # do a scene reverse-lookup to get a list of all possible names
         name_list = show_name_helpers.sceneToNormalShowNames(parse_result.series_name)
 
         if not name_list:
             return (None, season, episodes)
-        
+        """
         def _finalize(parse_result):
             self.release_group = parse_result.release_group
             
