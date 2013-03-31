@@ -127,27 +127,6 @@ class CompleteParser(object):
             self.complete_result.season = self.raw_parse_result.season_number
             self.complete_result.episodes = self.raw_parse_result.episode_numbers
         
-        #Disable Anime
-        """
-        if cur_show and cur_show.is_anime and not self.complete_result.scene: # only need to to do another conversion if the scene2tvdb didn work
-            _ab_conversion = False
-            if self.raw_parse_result.is_anime:
-                self._log("Getting season and episodes from absolute numbers", logger.DEBUG)
-                try:
-                    _actual_season, _actual_episodes = helpers.get_all_episodes_from_absolute_number(cur_show, None, self.raw_parse_result.ab_episode_numbers)
-                except exceptions.EpisodeNotFoundByAbsoluteNumerException:
-                    self._log(str(cur_show.tvdbid) + ": TVDB object absolute number " + str(self.raw_parse_result.ab_episode_numbers) + " is incomplete, cant determin season and episode numbers")
-                else:
-                    self.complete_result.season = _actual_season
-                    self.complete_result.episodes = _actual_episodes
-                    _ab_conversion = True
-
-            if not _ab_conversion and self.raw_parse_result.sxxexx:
-                self._log("Absolute number conversion failed. but we have season and episode numbers. There will be no scene conversion for this!", logger.DEBUG)
-                # this show is an anime but scene conversion did not work and we dont have any absolute numbers but we do have sxxexx numbers
-                self.complete_result.season = self.raw_parse_result.season_number
-                self.complete_result.episodes = self.raw_parse_result.episode_numbers
-        """
         if not cur_show:
             self._log("No show couldn't be matched. assuming tvdb numbers", logger.DEBUG)
             # we will use the stuff from the parser
@@ -195,23 +174,17 @@ class CompleteParser(object):
             return(None, None)
 
     def parse_wrapper(self, show=None, toParse='', showList=[], tvdbActiveLookUp=False):
-        """Retruns a parse result or a InvalidNameException
-            it will try to take the correct regex for the show if given
-            if not given it will try Anime first then Normal
-            if name is parsed as anime it will lookup the tvdbid and check if we have it as an anime
-            only if both is true we will consider it an anime
-            to get the tvdbid the tvdbapi might be used if tvdbActiveLookUp is True
+        """Returns a parse result or a InvalidNameException
+           to get the tvdbid the tvdbapi might be used if tvdbActiveLookUp is True
         """
         # TODO: refactor ABD into its own mode ... if done remove simple check in parse()
         if len(showList) == 0:
             showList = sickbeard.showList
-
         try:
             myParser = NameParser()
             parse_result = myParser.parse(toParse)
         except InvalidNameException:
-            parse_result = None
-            self._log(u"Could not parse '" + toParse + "' in regex mode: " + str(0), logger.DEBUG)
+            raise InvalidNameException(u"Unable to parse: " + toParse)
         else:
             show = self.get_show_by_name(parse_result.series_name, showList, toParse, tvdbActiveLookUp)
         return (parse_result, show)
