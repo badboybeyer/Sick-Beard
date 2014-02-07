@@ -7,22 +7,24 @@
 # Add the following lines to /etc/rc.conf.local or /etc/rc.conf
 # to enable this service:
 #
-# sickbeard_enable (bool):			Set to NO by default.
-#						Set it to YES to enable it.
-# sickbeard_user:				The user account SickBeard daemon runs as what
-#						you want it to be. It uses '_sabnzbd' user by
-#						default. Do not set it as empty or it will run
-#						as root.
-# sickbeard_dir:				Directory where Sick Beard lives.
-#						Default: /usr/local/sickbeard
-# sickbeard_chdir:				Change to this directory before running Sick Beard.
-#						Default is same as sickbeard_dir.
-# sickbeard_pid:				The name of the pidfile to create.
-#						Default is sickbeard.pid in sickbeard_dir.
-# sickbeard_flags:				Change or add startup arguments for sickbeard.
-#						Default: --quiet --nolaunch
+# sickbeard_enable (bool):Set to NO by default.
+#Set it to YES to enable it.
+# sickbeard_user:The user account SickBeard daemon runs as what
+#you want it to be. It uses '_sabnzbd' user by
+#default. Do not set it as empty or it will run
+#as root.
+# sickbeard_dir:Directory where Sick Beard lives.
+#Default: /usr/local/sickbeard
+# sickbeard_chdir:Change to this directory before running Sick Beard.
+#Default is same as sickbeard_dir.
+# sickbeard_pid:The name of the pidfile to create.
+#Default is sickbeard.pid in sickbeard_dir.
+# sickbeard_config:Change default config file for sickbeard.
+#Default: ${sickbeard_dir}/config.ini
+# sickbeard_flags:Change or add startup arguments for sickbeard.
+#Default: --quiet --nolaunch --config ${sickbeard_config}
 #
-			
+
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 
 . /etc/rc.subr
@@ -37,7 +39,8 @@ load_rc_config ${name}
 : ${sickbeard_dir:="/usr/local/sickbeard"}
 : ${sickbeard_chdir:="${sickbeard_dir}"}
 : ${sickbeard_pid:="${sickbeard_dir}/sickbeard.pid"}
-: ${sickbeard_flags:="--quiet --nolaunch"}
+: ${sickbeard_config:="${sickbeard_dir}/config.ini"}
+: ${sickbeard_flags:="--quiet --nolaunch --config ${sickbeard_config}"}
 
 required_dirs=${sickbeard_dir}
 
@@ -61,51 +64,55 @@ if [ `id -u` != "0" ]; then
   exit 1
 fi
 
+if [ -z "${sickbeard_config}" ]; then
+   sickbeard_config=${sickbeard_dir}/config.ini
+fi
+
 # Try to stop Sick Beard cleanly by calling shutdown over http.
 sickbeard_stop() {
     echo "Stopping $name"
-	if [ -f ${sickbeard_pid} ]; then
-		pid=`cat ${sickbeard_pid} 2>/dev/null`
+    if [ -f ${sickbeard_pid} ]; then
+	pid=`cat ${sickbeard_pid} 2>/dev/null`
 	else 
-		pid=`ps -U ${sickbeard_user} | grep "python.*SickBeard.py.*--daemon" | grep -v 'grep' | awk '{print $1}'`
+	pid=`ps -U ${sickbeard_user} | grep "python.*SickBeard.py.*--daemon" | grep -v 'grep' | awk '{print $1}'`
 	fi
-	
-	if [ -n "${pid}" ]; then
-		if [ -f "${sickbeard_dir}/config.ini" ]; then
-			host=`grep -m1 -E '^web_host\ =\ [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' ${sickbeard_dir}/config.ini | tr -dc '[0-9].'`
-			port=`grep -m1 ^web_port ${sickbeard_dir}/config.ini | tr -dc '[0-9]'`
-			sbusr=`grep -m1 ^web_username ${sickbeard_dir}/config.ini | /usr/bin/awk '{print $3}'`	
-			sbpwd=`grep -m1 ^web_password ${sickbeard_dir}/config.ini | /usr/bin/awk '{print $3}'`
-			if [ ${sbusr} = '""' ]; then
-				sbusr=""
-			fi		
-			if [ ${sbpwd} = '""' ]; then
-				sbpwd=""
-			fi		
-			${WGET} -O - -q --user=${sbusr} --password=${sbpwd} "http://${host}:${port}/home/shutdown/?pid=${pid}" >/dev/null
-		else
-			kill ${pid}
-		fi
-		wait_for_pids ${pid}
-		echo "Stopped"
+    
+    if [ -n "${pid}" ]; then
+	if [ -f "${sickbeard_config}" ]; then
+	    host=`grep -m1 -E '^web_host\ =\ [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' ${sickbeard_config} | tr -dc '[0-9].'`
+	    port=`grep -m1 ^web_port ${sickbeard_config} | tr -dc '[0-9]'`
+	    webroot=`grep -m1 ^web_root ${sickbeard_config} | /usr/bin/awk '{print $3}'`
+	    sbusr=`grep -m1 ^web_root ${sickbeard_config} | /usr/bin/awk '{print $3}'`
+	    sbpwd=`grep -m1 ^web_password ${sickbeard_config} | /usr/bin/awk '{print $3}'`
+	    if [ ${sbusr} = '""' ]; then
+		sbusr=""
+	    fi
+	    if [ ${sbpwd} = '""' ]; then
+		sbpwd=""
+	    fi
+	    ${WGET} -O - -q --user=${sbusr} --password=${sbpwd} "http://${host}:${port}${webroot}/home/shutdown/?pid=${pid}" >/dev/null
+	    else
+	    kill ${pid}
+	    fi
+	wait_for_pids ${pid}
+	echo "Stopped"
     else 
-		echo "Stopping $name failed. $name is not running"
+	echo "Stopping $name failed. $name is not running"
 	fi
 }
 
 sickbeard_status() {
-	if [ -f ${sickbeard_pid} ]; then
-		pid=`cat ${sickbeard_pid} 2>/dev/null`
-		echo "$name is running as ${pid}"
+    if [ -f ${sickbeard_pid} ]; then
+	pid=`cat ${sickbeard_pid} 2>/dev/null`
+	echo "$name is running as ${pid}"
 	else
-		pid=`ps -U ${sickbeard_user} | grep "python.*SickBeard.py.*--daemon" | grep -v 'grep' | awk '{print $1}'`
-		if [ -n "${pid}" ]; then
-			echo "No PID file found for $name. $name is running as ${pid}"
-		else
-			echo "$name is not running"
-		fi
+	pid=`ps -U ${sickbeard_user} | grep "python.*SickBeard.py.*--daemon" | grep -v 'grep' | awk '{print $1}'`
+	if [ -n "${pid}" ]; then
+	    echo "No PID file found for $name. $name is running as ${pid}"
+	    else
+	    echo "$name is not running"
+	    fi
 	fi
 }
 
 run_rc_command "$1"
-
